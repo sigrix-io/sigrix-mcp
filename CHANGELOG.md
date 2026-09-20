@@ -6,6 +6,24 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-20
+
+A MINOR bump rather than a patch because a tool description changed, which is
+what `VERSIONING.md` says that is — the release carries no new tool, no new
+argument and no change to any request body.
+
+### Fixed
+
+- `update_draft` now states the **type** of every field it accepts, derived
+  from the same vendored schema the field names already came from. The names
+  were derived and the types discarded, so the description listed
+  `compatibility` and `allowed_tools` side by side with nothing saying that the
+  first is a string and the second a list of strings. Drafting a skill listing
+  against the live platform, a model guessed and the platform refused the
+  payload — a poor way to learn a type this package was already shipping.
+  A union of two real types is left unlabelled rather than guessed at; every
+  field on the current schema resolves to an honest one.
+
 ## [0.1.0] — 2026-09-18
 
 First release, against seller API version `1`.

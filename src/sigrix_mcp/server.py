@@ -39,14 +39,61 @@ def _load_schema() -> dict[str, Any]:
 SCHEMA = _load_schema()
 
 
+def _properties(component: str) -> dict[str, Any]:
+    return SCHEMA.get("components", {}).get("schemas", {}).get(component, {}).get("properties", {})
+
+
 def _schema_fields(component: str) -> list[str]:
     """The property names of one request model, read off the platform's own schema."""
-    properties = SCHEMA.get("components", {}).get("schemas", {}).get(component, {}).get("properties", {})
-    return list(properties)
+    return list(_properties(component))
+
+
+def _type_label(prop: Any) -> str:
+    """``string``, ``string[]``, ``object[]``… or ``""`` when the shape says nothing useful.
+
+    The platform is FastAPI, so an optional field arrives as
+    ``{"anyOf": [{"type": "string"}, {"type": "null"}]}``. Every field on these
+    models is optional, so the ``null`` branch carries no information and is
+    dropped; what is left is the type a caller actually has to send.
+    """
+
+    if not isinstance(prop, dict):
+        return ""
+    branches = prop.get("anyOf")
+    if isinstance(branches, list):
+        real = [b for b in branches if isinstance(b, dict) and b.get("type") != "null"]
+        # More than one real branch is a union this label cannot state honestly,
+        # and a wrong label is worse than none.
+        return _type_label(real[0]) if len(real) == 1 else ""
+    kind = prop.get("type")
+    if kind == "array":
+        inner = _type_label(prop.get("items"))
+        return f"{inner}[]" if inner else "array"
+    return kind if isinstance(kind, str) else ""
+
+
+def _typed_fields(component: str) -> list[str]:
+    """``name (type)`` per property, so a caller is not left inferring shape from spelling.
+
+    This is the whole reason the schema is vendored rather than hand-written, and
+    it was half-applied: the names were derived and the types were thrown away,
+    leaving a description that listed ``compatibility`` and ``allowed_tools``
+    side by side in one sentence with nothing saying that the first is a string
+    and the second a list. A model drafting a skill listing guessed, guessed
+    wrong, and the platform refused the payload — which is a poor way to learn a
+    type the client was already shipping.
+    """
+
+    out: list[str] = []
+    for name, prop in _properties(component).items():
+        label = _type_label(prop)
+        out.append(f"{name} ({label})" if label else name)
+    return out
 
 
 ITEM_REGISTRATION_FIELDS = _schema_fields("ItemRegistration")
 ITEM_UPDATE_FIELDS = _schema_fields("ItemUpdate")
+ITEM_UPDATE_TYPED_FIELDS = _typed_fields("ItemUpdate")
 
 INSTRUCTIONS = f"""\
 Sigrix is a marketplace for prompts, personas and skills. This server publishes listings to it on
@@ -154,7 +201,9 @@ def create_draft(
         "output_format and scenarios (a list of {user_input, assistant_response}); for a persona: "
         "main_prompt plus tone, tagline, greeting, behavioral_notes; for a skill: instructions, license, "
         "compatibility, allowed_tools, skill_metadata; for any: name, description, category, tags, "
-        "price_cents, seo_title. Accepted keys: " + ", ".join(ITEM_UPDATE_FIELDS) + ". "
+        "price_cents, seo_title. Accepted keys, with the type each one takes: "
+        + ", ".join(ITEM_UPDATE_TYPED_FIELDS)
+        + ". "
         "The answer carries the saved record and its publish_eligibility. A listing that is "
         "pending_review cannot be edited until a moderator returns it. " + MODERATION_NOTE
     )
@@ -257,6 +306,7 @@ def draft_skill_listing(idea: str = "") -> str:
 __all__ = [
     "ITEM_REGISTRATION_FIELDS",
     "ITEM_UPDATE_FIELDS",
+    "ITEM_UPDATE_TYPED_FIELDS",
     "LISTING_TYPES",
     "check_draft",
     "configure",

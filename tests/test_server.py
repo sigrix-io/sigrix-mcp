@@ -217,3 +217,53 @@ def test_an_unset_token_is_a_configuration_error(monkeypatch):
     monkeypatch.delenv("SIGRIX_SELLER_TOKEN", raising=False)
     with pytest.raises(SigrixConfigError):
         SigrixClient.from_env()
+
+
+# ---------------------------------------------------------------------------
+# The types a caller has to send (0.2.0)
+# ---------------------------------------------------------------------------
+
+
+def test_update_draft_states_the_type_of_every_field_it_accepts():
+    """The whole reason the platform's schema is vendored rather than hand-written.
+
+    It was half-applied: the field *names* were derived and their types thrown
+    away, so the description listed `compatibility` and `allowed_tools` in one
+    sentence with nothing saying that the first is a string and the second a
+    list. A model drafting a skill listing against production guessed, guessed
+    wrong, and the platform refused the payload.
+    """
+
+    labels = dict(zip(srv.ITEM_UPDATE_FIELDS, srv.ITEM_UPDATE_TYPED_FIELDS, strict=True))
+
+    assert labels["compatibility"] == "compatibility (string)"
+    assert labels["allowed_tools"] == "allowed_tools (string[])"
+    assert labels["scenarios"] == "scenarios (object[])"
+    assert labels["price_cents"] == "price_cents (integer)"
+
+    # Every field, or the derivation is silently degrading for some of them and
+    # the next caller learns the shape from a rejection instead.
+    untyped = [label for label in srv.ITEM_UPDATE_TYPED_FIELDS if "(" not in label]
+    assert untyped == [], untyped
+
+
+def test_the_types_reach_the_description_the_model_reads():
+    """Deriving them and not printing them would be the same bug again."""
+
+    tools = {tool.name: tool for tool in asyncio.run(srv.server.list_tools())}
+    description = tools["update_draft"].description
+    assert "compatibility (string)" in description
+    assert "allowed_tools (string[])" in description
+
+
+def test_a_label_is_omitted_rather_than_guessed_for_a_real_union():
+    """FastAPI writes every optional field as `anyOf: [T, null]`, so dropping
+    the null branch is safe. A union of two *real* types is not something this
+    label can state honestly, and a wrong type is worse than no type."""
+
+    assert srv._type_label({"anyOf": [{"type": "string"}, {"type": "null"}]}) == "string"
+    assert srv._type_label({"anyOf": [{"type": "string"}, {"type": "integer"}]}) == ""
+    assert srv._type_label({"type": "array"}) == "array"
+    assert srv._type_label({"type": "array", "items": {"type": "string"}}) == "string[]"
+    assert srv._type_label(None) == ""
+    assert srv._type_label({}) == ""

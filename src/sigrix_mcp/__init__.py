@@ -8,7 +8,7 @@ submission enters the platform's moderation queue, and a moderator decides.
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 #: The seller API version this release was written against. ``GET
 #: /api/categories`` serves the platform's own ``api_version``; the client
