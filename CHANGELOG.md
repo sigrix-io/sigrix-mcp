@@ -6,6 +6,17 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+### Added
+
+- `tests/test_workflow_pins.py` asserts that every `uses:` in both workflows
+  names a 40-character commit and carries the `# vX.Y.Z` comment Dependabot
+  rewrites. This repository now calls `sigrix-io/actions`, and those pins being
+  ours makes them *more* important to hold, not less: `@main` would be
+  convenient and would mean a change made in another repository reaching this
+  one's release with no commit here to point at. `tests/test_release_workflow.py`
+  narrows to the property only it covers — that the release stores no
+  credential at all — rather than repeating the pin assertions.
+
 ### Changed
 
 - Both workflows now call `sigrix-io/actions`, a new repository holding the
