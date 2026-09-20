@@ -33,6 +33,16 @@ described in `VERSIONING.md`.
 
 ### Added
 
+- `release.yml` gains a `verify` job, adapted from `sigrix-io/postern`: after
+  the upload, it installs `sigrix-mcp==<tag>` from PyPI **by name** and runs
+  it. An upload that succeeds is not the same as a package anyone can
+  install, and the two look identical from the publish step — a green tick.
+  This is what tells them apart, and it is the only check here that exercises
+  the artifact the world actually gets rather than a local file. Its retry
+  window is ten minutes rather than postern's two and a half, because
+  VERSIONING.md tells a reader to allow about that long for the index's CDN
+  cache, and a check that gave up sooner than the documentation says to wait
+  would report a healthy release as a failure.
 - The package now ships type information: `src/sigrix_mcp/py.typed` and the
   `Typing :: Typed` classifier, with a `types` job running `mypy --strict` on
   every change. That is a promise to consumers — their checker will trust
