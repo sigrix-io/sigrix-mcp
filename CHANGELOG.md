@@ -16,6 +16,15 @@ described in `VERSIONING.md`.
   `seller_api_openapi.json` failing to ship: `server.py` reads it through
   `importlib.resources`, and an editable install finds it in the source tree
   whether or not the wheel carries it.
+- `ruff` and `mypy` are pinned exactly in the dev extra, and both CI jobs
+  install them from there rather than naming a version of their own — so a
+  local `ruff format` and the CI check cannot disagree, and an unrelated
+  checker release cannot turn a commit that changed nothing red. The ruff
+  rule set gains `SIM` (flake8-simplify); line length stays at 120.
+- `SECURITY.md` now states what is and is not in scope, including the
+  filesystem reach of `import_skill_md` and `export_skill_md` and where the
+  MCP client's approval prompt is the boundary. `CONTRIBUTING.md` publishes
+  the review queues, and both it and the README list the checks CI runs.
 - `release.yml` gains the guards the sibling repositories run: a fork guard, a
   non-cancelling concurrency group, `twine check`, a changelog gate, and a
   wheel-installed run of the suite. The tag/version check now reads the built
@@ -24,6 +33,13 @@ described in `VERSIONING.md`.
 
 ### Added
 
+- The package now ships type information: `src/sigrix_mcp/py.typed` and the
+  `Typing :: Typed` classifier, with a `types` job running `mypy --strict` on
+  every change. That is a promise to consumers — their checker will trust
+  these annotations rather than infer around them — so CI now proves both
+  halves of it: the annotations check, and the marker actually ships in the
+  wheel. Fixing the two errors strict mode found also removed an `Any` that
+  was escaping `_load_schema` into every caller.
 - `CODE_OF_CONDUCT.md`, issue forms, a pull request template, and a Dependabot
   configuration for the pip and github-actions ecosystems — the same set the
   other open repositories carry. Dependabot is also what keeps the publish
@@ -31,6 +47,12 @@ described in `VERSIONING.md`.
 
 ### Security
 
+- **Every** action in both workflows is now pinned to a commit with a
+  `# vX.Y.Z` comment beside it, rather than to a mutable tag — the same SHAs
+  `sigrix-io/postern` already carries. A tag is moved by whoever owns the
+  action, so a retagged release could otherwise reach CI with nothing in this
+  repository recording it. The Dependabot entry above is what keeps the pins
+  from going stale, which is the other half of that trade.
 - The release workflow pins `pypa/gh-action-pypi-publish` to a commit rather
   than to `release/v1`. That reference is a branch, so the step holding upload
   rights to PyPI could change under a tagged release with nothing here

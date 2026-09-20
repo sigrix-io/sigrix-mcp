@@ -41,8 +41,8 @@ jobs:
       # when discovering an action's breaking change is most expensive, so it
       # should run on the versions the rest of the repository has exercised.
       # Dependabot moves both files together.
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
@@ -138,8 +138,9 @@ jobs:
       # proves the *artifact* does, which is a different question and the only
       # one that still matters once the bytes are immutable on PyPI: a file
       # missing from the wheel is invisible to every editable-install run, and
-      # this package ships one that is not Python — `server.py` reads
-      # `seller_api_openapi.json` through `importlib.resources`.
+      # this package ships two that are not Python — `server.py` reads
+      # `seller_api_openapi.json` through `importlib.resources`, and `py.typed`
+      # is what makes the `Typing :: Typed` classifier mean anything.
       - name: The built wheel installs, imports, and passes the suite
         run: |
           set -euo pipefail
@@ -147,24 +148,38 @@ jobs:
           /tmp/releasecheck/bin/python -m pip install --quiet dist/*.whl pytest
           # From /tmp, so nothing in the checkout can satisfy the import.
           cd /tmp
-          /tmp/releasecheck/bin/python -c "
-          import asyncio, sigrix_mcp, sigrix_mcp.server as s
+          # A quoted heredoc, so the shell does not touch a character of this:
+          # unquoted, backticks and $ in Python source are command
+          # substitutions, and the failure mode is silent -- the shell deletes
+          # the text and hands Python something that still parses.
+          /tmp/releasecheck/bin/python - <<'PY'
+          import asyncio
+          import pathlib
+          import sigrix_mcp
+          import sigrix_mcp.server as s
+
+          # pyproject declares `Typing :: Typed`, which a consumer's checker
+          # only honours if the marker actually shipped.
+          root = pathlib.Path(sigrix_mcp.__file__).parent
+          assert (root / "py.typed").exists(), "py.typed did not ship"
+
           names = sorted(t.name for t in asyncio.run(s.server.list_tools()))
-          assert names, 'the server lists no tools'
-          print(sigrix_mcp.__version__, '-', len(names), 'tools resolve')
-          "
+          assert names, "the server lists no tools"
+          print(sigrix_mcp.__version__, "-", len(names), "tools resolve")
+          PY
           cd "${GITHUB_WORKSPACE}"
           # src-layout means ./sigrix_mcp does not exist, so the import below
           # can only resolve to the wheel in the venv. Asserted rather than
           # assumed: a suite that quietly re-tested the source tree would look
           # identical.
-          /tmp/releasecheck/bin/python -c "
+          /tmp/releasecheck/bin/python - <<'PY'
           import sigrix_mcp
-          assert 'site-packages' in sigrix_mcp.__file__, sigrix_mcp.__file__
-          "
+
+          assert "site-packages" in sigrix_mcp.__file__, sigrix_mcp.__file__
+          PY
           /tmp/releasecheck/bin/python -m pytest tests/ -q
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: dist/
@@ -188,7 +203,7 @@ jobs:
       # it is also what makes the action attach PEP 740 attestations.
       id-token: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
