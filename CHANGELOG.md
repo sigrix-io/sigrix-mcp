@@ -8,6 +8,18 @@ described in `VERSIONING.md`.
 
 ### Changed
 
+- Both workflows now call `sigrix-io/actions`, a new repository holding the
+  composite actions the Sigrix projects share. Eleven `uses:` lines across the
+  three repositories named the same two upstream commit pins; here they drop
+  to **zero** — every Python job is one `uses:` line, and the only upstream
+  pins left in this repository are the two artifact actions, used once each.
+  A pin only stays correct if something bumps it, and three Dependabot queues
+  editing the same two actions is how mullion came to run floating tags while
+  postern was pinned. The publish step is deliberately untouched: a reusable
+  workflow cannot publish to PyPI, because trusted publishing matches the OIDC
+  claim against the workflow that ran — which is why these are composite
+  actions, that run inside the caller's job.
+
 - Repository setup now matches the other open Sigrix repositories. CI gains a
   separate `lint` job, a `build` job that installs the built wheel into a clean
   environment, and a `ci-passed` aggregate job — one check to require on `main`,
