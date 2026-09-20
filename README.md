@@ -70,10 +70,17 @@ It does not publish anything. A submitted listing is `pending_review` until a mo
 
 ```sh
 pip install -e ".[dev]"
-ruff check . && pytest
+ruff check .
+ruff format --check .
+mypy --strict src/sigrix_mcp
+pytest
 ```
 
 `scripts/sync_schemas.py <base-url>` refreshes the API schema the tool descriptions are derived from.
+
+The package ships type information (`py.typed`), so your own checker uses these annotations rather than inferring around them.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the scope and the review queues, [VERSIONING.md](VERSIONING.md) says what a version bump means, and [SECURITY.md](SECURITY.md) is where a vulnerability goes — not the tracker.
 
 ## Licence
 

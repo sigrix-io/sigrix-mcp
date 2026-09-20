@@ -34,5 +34,6 @@ repository.
 - [ ] `pytest`
 - [ ] `ruff check .`
 - [ ] `ruff format --check .`
+- [ ] `mypy --strict src/sigrix_mcp`
 - [ ] Scope: still a thin client — one tool is one request to one route (see CONTRIBUTING)
 - [ ] `CHANGELOG.md` updated under `Unreleased`, if this is user-visible

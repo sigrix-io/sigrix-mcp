@@ -33,14 +33,25 @@ MODERATION_NOTE = (
 
 def _load_schema() -> dict[str, Any]:
     text = resources.files(__package__).joinpath("seller_api_openapi.json").read_text(encoding="utf-8")
-    return json.loads(text)
+    # Bound to an annotated local rather than returned straight out. `json.loads`
+    # is typed `Any`, and under `mypy --strict` returning that from a function
+    # declared to return a dict does not merely go unchecked here -- the `Any`
+    # escapes into every caller, so the annotations this package now ships
+    # would be trusted while checking nothing.
+    schema: dict[str, Any] = json.loads(text)
+    return schema
 
 
 SCHEMA = _load_schema()
 
 
 def _properties(component: str) -> dict[str, Any]:
-    return SCHEMA.get("components", {}).get("schemas", {}).get(component, {}).get("properties", {})
+    # Same reason as `_load_schema`: each `.get` on a `dict[str, Any]` yields
+    # `Any`, so the chain has to land somewhere named before it is returned.
+    properties: dict[str, Any] = (
+        SCHEMA.get("components", {}).get("schemas", {}).get(component, {}).get("properties", {})
+    )
+    return properties
 
 
 def _schema_fields(component: str) -> list[str]:

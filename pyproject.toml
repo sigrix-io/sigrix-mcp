@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
 ]
 dependencies = [
     "mcp>=2.0,<3",
@@ -31,7 +32,15 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
-    "ruff>=0.6",
+    # ruff and mypy are pinned exactly, and the CI jobs install them from here
+    # rather than naming a version of their own. A floating checker turns an
+    # unrelated release into a red build on a commit that changed nothing, and
+    # a version written into the workflow as well would live in two places --
+    # Dependabot's pip ecosystem reads this file and cannot see a `pip install`
+    # inside a workflow, so its bump would move one of them and leave
+    # contributors running a different formatter from CI.
+    "ruff==0.16.8",
+    "mypy==2.3.1",
 ]
 
 [project.scripts]
@@ -53,7 +62,7 @@ line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "S"]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]

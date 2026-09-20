@@ -32,12 +32,15 @@ updates:
   # checkout starts failing on whichever pull request happens to be open that
   # day.
   #
-  # It is also what keeps the SHA pin in release.yml current. That step holds
-  # upload rights to PyPI and `tests/test_release_workflow.py` fails if the pin
-  # regresses to a tag or branch — so the pin cannot move on its own, and
-  # without an entry here nothing would ever move it deliberately either.
-  # Dependabot reads the `# vX.Y.Z` comment beside the SHA to know what it is
-  # bumping from, so a pin written without one goes quietly stale.
+  # It is also what makes the SHA pins in those workflows safe to have. Every
+  # `uses:` names a commit rather than a tag, so a retagged or compromised
+  # release cannot reach this repository silently — and by the same token
+  # nothing moves a pin on its own, which is exactly the trade the opening
+  # paragraph above describes. The publish step in release.yml is the sharpest
+  # case: it holds upload rights to PyPI, and
+  # `tests/test_release_workflow.py` fails if its pin regresses to a tag or a
+  # branch. Dependabot reads the `# vX.Y.Z` comment beside each SHA to know
+  # what it is bumping from, so a pin written without one goes quietly stale.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
