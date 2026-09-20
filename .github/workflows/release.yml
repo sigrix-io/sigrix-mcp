@@ -216,3 +216,88 @@ jobs:
       # fails if this goes back to a tag or a branch, and Dependabot rewrites
       # the trailing comment when it bumps the pin.
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  # An upload that succeeds is not the same as a package anyone can install,
+  # and the two failures look identical from the publish step: a green tick.
+  # This is the check that tells them apart — install by name, from the index
+  # the upload just went to, the way a user would.
+  #
+  # What it catches, none of which the publish step can see: an upload that
+  # did not land, an index that will not serve it, a wheel whose schema or
+  # type marker did not ride along, and a version that disagrees with the one
+  # this run built. The build job proves those properties of a *local* file;
+  # this proves them of the artifact the world actually gets.
+  #
+  # Adapted from `sigrix-io/postern`, which has run this shape through real
+  # releases. The one deliberate difference is the retry window, below.
+  verify:
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install from PyPI by name, and run what was published
+        run: |
+          set -euo pipefail
+
+          # The build job already refused the tag unless it named the packaged
+          # version, so the tag is a sound source for what to expect here.
+          EXPECTED="${GITHUB_REF_NAME#v}"
+
+          python -m venv /tmp/verify
+
+          # VERSIONING.md tells a reader to allow about ten minutes after an
+          # upload before expecting the new version to resolve, because of the
+          # index's CDN cache. A check that gave up sooner than the
+          # documentation says to wait would report a healthy release as a
+          # failure, so this waits out the whole documented window: 40 attempts
+          # at 15 seconds is ten minutes. It breaks on the first success, so
+          # the usual cost is one attempt — the window only matters when
+          # something is actually wrong, and that is not a case worth being
+          # fast about.
+          for attempt in $(seq 1 40); do
+            if /tmp/verify/bin/pip install --quiet "sigrix-mcp==$EXPECTED"; then
+              echo "installed on attempt $attempt"
+              break
+            fi
+            if [ "$attempt" = "40" ]; then
+              echo "::error::sigrix-mcp==$EXPECTED never became installable from PyPI. The upload reported success, so check the project page before re-tagging — a version is spent permanently either way."
+              exit 1
+            fi
+            echo "not on the index yet (attempt $attempt); waiting"
+            sleep 15
+          done
+
+          # Not merely that something installed — that the thing published by
+          # *this run* did. An older release already on the index would
+          # satisfy a bare install and tell us nothing.
+          cd /tmp
+          EXPECTED="$EXPECTED" /tmp/verify/bin/python - <<'PY'
+          import asyncio
+          import os
+          import pathlib
+          from importlib.metadata import entry_points
+
+          import sigrix_mcp
+          import sigrix_mcp.server as s
+
+          expected = os.environ["EXPECTED"]
+          assert sigrix_mcp.__version__ == expected, (
+              f"installed {sigrix_mcp.__version__} from the index, expected {expected}"
+          )
+
+          root = pathlib.Path(sigrix_mcp.__file__).parent
+          assert (root / "py.typed").exists(), "py.typed did not survive the round trip to PyPI"
+          assert (root / "seller_api_openapi.json").exists(), "the schema did not survive the round trip to PyPI"
+
+          names = sorted(t.name for t in asyncio.run(s.server.list_tools()))
+          assert names, "the published package lists no tools"
+
+          script = [e for e in entry_points(group="console_scripts") if e.name == "sigrix-mcp"]
+          assert script, "the sigrix-mcp console script is not in the published distribution"
+          assert script[0].load().__name__ == "main"
+
+          print(f"{expected} installs from PyPI and serves {len(names)} tools:", names)
+          PY
