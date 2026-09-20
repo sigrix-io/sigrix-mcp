@@ -1,0 +1,47 @@
+name: Change
+description: You want this server to do something it does not.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Please read [what does not
+        fit](https://github.com/sigrix-io/sigrix-mcp/blob/main/CONTRIBUTING.md#what-does-not)
+        first. The scope is narrow on purpose: every tool is one request to one
+        route of the seller API, and a change that widens that will be turned
+        down however good it is.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What goes wrong today
+      description: >-
+        Describe the situation, not the feature — what you were trying to
+        publish, and where the round trip broke down.
+    validations:
+      required: true
+  - type: dropdown
+    id: shape
+    attributes:
+      label: Does the route already exist?
+      description: >-
+        A new tool that wraps a seller API route that exists is the easy case.
+        A tool that needs a route built first starts in the platform's
+        repository, not here.
+      options:
+        - It wraps a seller API route that already exists
+        - It needs a new route on the platform first
+        - It is not about a route — prompts, descriptions, or client config
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you do instead right now
+      description: >-
+        If the answer is a curl against the seller API, paste it (redacted).
+        That is the strongest possible case: it shows the route is there and
+        the only thing missing is the tool in front of it.
+      render: shell
+    validations:
+      required: false

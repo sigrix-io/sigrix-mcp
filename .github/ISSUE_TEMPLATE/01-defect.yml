@@ -1,0 +1,66 @@
+name: Defect
+description: A tool builds the wrong request, or reads the answer wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        **Do not paste your `SIGRIX_SELLER_TOKEN`, or an `Authorization`
+        header.** Redact it before you attach anything. Everything below is
+        public the moment you press submit, and a seller token is enough to
+        act on your listings.
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which tool?
+      options:
+        - check_draft
+        - create_draft
+        - export_skill_md
+        - get_listing
+        - import_skill_md
+        - list_categories
+        - list_my_listings
+        - submit_for_review
+        - update_draft
+        - Not a tool — startup, auth, or the API version check
+    validations:
+      required: true
+  - type: textarea
+    id: call
+    attributes:
+      label: The call, with its arguments
+      description: >-
+        What the model asked for, or the arguments you passed by hand.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what you got
+      description: >-
+        Paste the error or the response body, redacted. This is a thin client:
+        the useful distinction is whether *this code* built the wrong request,
+        or the platform answered the right request oddly — say which you think
+        it is, and why, if you can tell.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: sigrix-mcp, Python, and the MCP client you are running it in.
+      placeholder: "sigrix-mcp 0.2.0, Python 3.13, Claude Code"
+    validations:
+      required: true
+  - type: input
+    id: base_url
+    attributes:
+      label: SIGRIX_BASE_URL
+      description: >-
+        Only if you have set it to something other than the default
+        (https://sigrix.io). The host, not the token.
+      placeholder: "default"
+    validations:
+      required: false

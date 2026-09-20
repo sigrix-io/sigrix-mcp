@@ -1,0 +1,25 @@
+# The three forms alongside this file are three kinds that are triaged
+# differently. A blank issue would let the classification be skipped, which is
+# the thing that does not currently work.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/sigrix-io/sigrix-mcp/security/policy
+    about: >-
+      Do not open a public issue. Email security@sigrix.io — acknowledged
+      within three working days. This server holds a seller token and talks to
+      the Sigrix API on your behalf; anything that leaks or misuses it is in
+      scope.
+  - name: Raise a code of conduct concern
+    url: https://github.com/sigrix-io/sigrix-mcp/blob/main/CODE_OF_CONDUCT.md
+    about: >-
+      Email conduct@sigrix.io. A different address and a different queue from
+      security reports; neither is a fallback for the other.
+  - name: A listing was rejected, or the platform answered oddly
+    url: https://sigrix.io
+    about: >-
+      Nothing this server submits goes live — a moderator decides. If the
+      question is about that decision, or about a seller API route behaving
+      differently than documented, it belongs with the platform rather than
+      with this client.

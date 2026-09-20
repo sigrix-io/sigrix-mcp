@@ -32,6 +32,16 @@ assume:
 2. In this repository's settings, an **environment named `pypi`**. The
    publisher's claim names it, so a workflow running outside it is refused.
 
+The workflow then refuses a tag that would ship something misleading, so get
+these right before pushing it:
+
+- **`pyproject.toml` names the version the tag does.** The tag is typed by
+  hand and hatchling reads the version from the file; nothing else makes them
+  agree, and a PyPI version number can never be reused once uploaded.
+- **`CHANGELOG.md` has a `## [X.Y.Z]` heading, and `[Unreleased]` is empty.**
+  Anything still filed as unreleased is on the commit being tagged, so it
+  ships in this release while the changelog says it did not.
+
 Then:
 
 ```sh

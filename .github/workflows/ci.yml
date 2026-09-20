@@ -1,3 +1,9 @@
+# Lint, then test, then prove the package builds and installs.
+#
+# The ruff steps run before pytest deliberately: a formatting slip should fail
+# the job in ten seconds rather than after the suite. They are two commands
+# rather than one because `check` and `format --check` answer different
+# questions and only one of them is about style.
 name: CI
 
 on:
@@ -8,7 +14,28 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      # From the dev extra, not a version written here, so that a local
+      # `ruff format` and this check can never disagree about formatter
+      # behaviour. A version written into this file would live in two places,
+      # and Dependabot's pip ecosystem reads pyproject.toml — it cannot see a
+      # `pip install` inside a workflow, so its bump would move only one of
+      # them and leave contributors running a different formatter from CI.
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m ruff check .
+      - run: python -m ruff format --check .
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -16,15 +43,77 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install
-        run: python -m pip install --upgrade pip && pip install -e ".[dev]"
-      - name: Lint
-        run: ruff check . && ruff format --check .
-      - name: Test
-        run: pytest -q
-      - name: The package imports and lists its tools
-        run: python -c "import asyncio, sigrix_mcp.server as s; print(sorted(t.name for t in asyncio.run(s.server.list_tools())))"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install build twine
+      - run: python -m build
+      # Catches a README that renders on GitHub and not on PyPI, which is
+      # otherwise found at the moment of publishing and not before.
+      - run: python -m twine check dist/*
+      # The wheel is what users get, and this repository ships a data file:
+      # `server.py` reads `seller_api_openapi.json` through
+      # `importlib.resources`, so a packaging change that dropped it would
+      # break every install while every editable-install job above stayed
+      # green — an editable install reads the source tree and finds the file
+      # either way. Installing the built wheel into a clean venv, from a
+      # directory where the source tree cannot satisfy the import, is the only
+      # thing that actually proves it shipped.
+      - name: The built wheel installs, and carries its schema
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/wheelcheck
+          /tmp/wheelcheck/bin/python -m pip install --quiet dist/*.whl
+          cd /tmp
+          # A quoted heredoc, so the shell does not touch a character of this:
+          # unquoted, backticks and $ in Python source are command
+          # substitutions, and the failure mode is silent -- the shell deletes
+          # the text and hands Python something that still parses.
+          /tmp/wheelcheck/bin/python - <<'PY'
+          import asyncio
+          import sigrix_mcp
+          import sigrix_mcp.server as s
+          from importlib.metadata import entry_points
+
+          # src-layout means ./sigrix_mcp does not exist here, so this can only
+          # have resolved to the wheel. Asserted rather than assumed: a check
+          # that quietly re-tested the source tree would look identical.
+          assert "site-packages" in sigrix_mcp.__file__, sigrix_mcp.__file__
+
+          names = sorted(t.name for t in asyncio.run(s.server.list_tools()))
+          assert names, "the server lists no tools"
+
+          # The console script is a declared entry point. Resolved rather than
+          # run: main() reads the environment and exits 2 without a token,
+          # which is its documented contract and not something to assert here.
+          script = [e for e in entry_points(group="console_scripts") if e.name == "sigrix-mcp"]
+          assert script, "the sigrix-mcp console script is not declared in the wheel"
+          assert script[0].load().__name__ == "main"
+
+          print(sigrix_mcp.__version__, "-", len(names), "tools:", names)
+          PY
+
+  # The aggregate gate. One check to require on `main`, so adding a job above
+  # does not mean editing a branch protection rule to match — and so the test
+  # matrix can gain a Python version without silently leaving the new entry
+  # unrequired.
+  ci-passed:
+    if: always()
+    needs: [lint, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job succeeded
+        run: |
+          echo '${{ toJSON(needs) }}'
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]

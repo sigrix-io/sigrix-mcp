@@ -6,6 +6,29 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+### Changed
+
+- Repository setup now matches the other open Sigrix repositories. CI gains a
+  separate `lint` job, a `build` job that installs the built wheel into a clean
+  environment, and a `ci-passed` aggregate job — one check to require on `main`,
+  so adding a Python version to the matrix no longer means editing a branch
+  protection rule to match. The build job is what would now catch
+  `seller_api_openapi.json` failing to ship: `server.py` reads it through
+  `importlib.resources`, and an editable install finds it in the source tree
+  whether or not the wheel carries it.
+- `release.yml` gains the guards the sibling repositories run: a fork guard, a
+  non-cancelling concurrency group, `twine check`, a changelog gate, and a
+  wheel-installed run of the suite. The tag/version check now reads the built
+  wheel rather than `pyproject.toml`, so it compares the tag against what was
+  actually packaged.
+
+### Added
+
+- `CODE_OF_CONDUCT.md`, issue forms, a pull request template, and a Dependabot
+  configuration for the pip and github-actions ecosystems — the same set the
+  other open repositories carry. Dependabot is also what keeps the publish
+  action's commit pin current, which nothing moved before.
+
 ### Security
 
 - The release workflow pins `pypa/gh-action-pypi-publish` to a commit rather

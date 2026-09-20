@@ -1,0 +1,44 @@
+# Keeps the things this repository pins from ageing quietly.
+#
+# The `ci-passed` gate is what makes this safe rather than merely automatic. A
+# bump that breaks anything arrives as a red check on a pull request nobody has
+# merged, and because that aggregate check is required on `main`, it cannot
+# land without passing.
+#
+# Two GitHub behaviours worth knowing: this file is read from the default
+# branch, so editing it on a branch changes nothing until it merges; and
+# Dependabot needs the dependency graph enabled on the repository, which is not
+# something this file can assert.
+#
+# Deliberately no auto-merge. Whether these should merge themselves when green
+# is a judgement about how much unattended merging is wanted, and it belongs on
+# the record rather than defaulted into by a config nobody revisits.
+version: 2
+updates:
+  # Both the runtime floors and the dev extras. `scripts/sync_schemas.py` has
+  # no requirements file of its own — it imports httpx, which is already a
+  # runtime dependency here — so this one entry is the whole pip surface.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Every workflow, rather than a list of them: the directory is the repository
+  # root, so this covers whatever .github/workflows holds and does not fall out
+  # of date as workflows are added.
+  #
+  # This turns an action deprecation into a pull request, rather than a warning
+  # at the top of a log nobody reads until the runtime is withdrawn and
+  # checkout starts failing on whichever pull request happens to be open that
+  # day.
+  #
+  # It is also what keeps the SHA pin in release.yml current. That step holds
+  # upload rights to PyPI and `tests/test_release_workflow.py` fails if the pin
+  # regresses to a tag or branch — so the pin cannot move on its own, and
+  # without an entry here nothing would ever move it deliberately either.
+  # Dependabot reads the `# vX.Y.Z` comment beside the SHA to know what it is
+  # bumping from, so a pin written without one goes quietly stale.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
