@@ -43,4 +43,11 @@ jobs:
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      # Pinned to the commit rather than to `release/v1`, which is a *branch*:
+      # it moves whenever upstream pushes, and nothing in this repository would
+      # record that it had. That matters here and nowhere else in this file —
+      # this is the one step holding upload rights to PyPI, through the OIDC
+      # token the permission above mints. The SHA is what `release/v1` points
+      # at today, so this freezes what already runs rather than changing it,
+      # and it is the same one `sigrix-io/mullion` and `sigrix-io/postern` pin.
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

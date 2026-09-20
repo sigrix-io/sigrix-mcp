@@ -6,6 +6,16 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+### Security
+
+- The release workflow pins `pypa/gh-action-pypi-publish` to a commit rather
+  than to `release/v1`. That reference is a branch, so the step holding upload
+  rights to PyPI could change under a tagged release with nothing here
+  recording it. The pin is what the branch pointed at when it was made, so
+  nothing about the current release changes; `tests/test_release_workflow.py`
+  is what notices if it goes back, and that the workflow still stores no
+  credential.
+
 ## [0.2.0] — 2026-09-20
 
 A MINOR bump rather than a patch because a tool description changed, which is
