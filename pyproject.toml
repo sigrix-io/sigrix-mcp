@@ -39,7 +39,7 @@ dev = [
     # Dependabot's pip ecosystem reads this file and cannot see a `pip install`
     # inside a workflow, so its bump would move one of them and leave
     # contributors running a different formatter from CI.
-    "ruff==0.16.8",
+    "ruff==0.16.9",
     "mypy==2.3.1",
 ]
 
