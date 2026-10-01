@@ -19,6 +19,13 @@ described in `VERSIONING.md`.
 
 ### Changed
 
+- The README opens with badges for the PyPI release, the Python versions, CI
+  and the licence; *Get a token* links the settings card the token is made
+  on; and a new *Where it fits* section places the server among the other
+  projects Sigrix publishes. Its links to `CONTRIBUTING.md`, `VERSIONING.md`
+  and `SECURITY.md` are absolute now: the README is the PyPI page too, and
+  PyPI resolves a relative link against pypi.org, where none of those files
+  are. The next release carries it there. Nothing the server sends changes.
 - Dependabot opens one pull request per ecosystem instead of one per
   dependency. The branch ruleset only merges a pull request that is up to date
   with `main`, so each separate update merged put every other one behind.
