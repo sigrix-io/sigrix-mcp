@@ -1,5 +1,10 @@
 # sigrix-mcp
 
+[![PyPI](https://img.shields.io/pypi/v/sigrix-mcp)](https://pypi.org/project/sigrix-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/sigrix-mcp)](https://pypi.org/project/sigrix-mcp/)
+[![CI](https://github.com/sigrix-io/sigrix-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sigrix-io/sigrix-mcp/actions/workflows/ci.yml)
+[![Licence](https://img.shields.io/github/license/sigrix-io/sigrix-mcp)](https://github.com/sigrix-io/sigrix-mcp/blob/main/LICENSE)
+
 Publish prompt, persona and skill listings to [Sigrix](https://sigrix.io) from the AI client you already write in — Claude Code, Claude Desktop, Cursor, or any MCP client.
 
 A thin server over Sigrix's seller API. It carries no model calls, no validation of its own and no secret beyond your token. Every submission goes through Sigrix's moderation queue; nothing goes live from here.
@@ -14,7 +19,7 @@ Python 3.11 or newer.
 
 ## Get a token
 
-Sign in to Sigrix, open **Account → Settings**, and create a **Seller API token**. It is shown once. The token can create, edit and submit *your own* drafts for review, and nothing else on your account: it cannot approve or publish, and it opens no other page or API. Revoke or regenerate it from the same card at any time; the old token stops working on the next request.
+Sign in to Sigrix, open [**Account → Settings**](https://sigrix.io/account/settings#seller-api-token), and create a **Seller API token**. It is shown once. The token can create, edit and submit *your own* drafts for review, and nothing else on your account: it cannot approve or publish, and it opens no other page or API. Revoke or regenerate it from the same card at any time; the old token stops working on the next request.
 
 Give it to the server as `SIGRIX_SELLER_TOKEN`.
 
@@ -66,6 +71,10 @@ The server pins the seller API version it was written against and refuses to run
 
 It does not publish anything. A submitted listing is `pending_review` until a moderator approves it, and you can keep editing it in the web wizard at the `edit_url` every tool returns. It does not read your purchases or anyone else's listings, and it never sends your token anywhere but the `Authorization` header of requests to the base URL you configured.
 
+## Where it fits
+
+sigrix-mcp is one of the open-source projects [Sigrix](https://sigrix.io) publishes, and a seller's way in: a draft goes from your editor through the seller API into the review queue. Every project Sigrix publishes, and a map of how they connect: [sigrix.io/open-source](https://sigrix.io/open-source).
+
 ## Development
 
 ```sh
@@ -80,7 +89,7 @@ pytest
 
 The package ships type information (`py.typed`), so your own checker uses these annotations rather than inferring around them.
 
-[CONTRIBUTING.md](CONTRIBUTING.md) has the scope and the review queues, [VERSIONING.md](VERSIONING.md) says what a version bump means, and [SECURITY.md](SECURITY.md) is where a vulnerability goes — not the tracker.
+[CONTRIBUTING.md](https://github.com/sigrix-io/sigrix-mcp/blob/main/CONTRIBUTING.md) has the scope and the review queues, [VERSIONING.md](https://github.com/sigrix-io/sigrix-mcp/blob/main/VERSIONING.md) says what a version bump means, and [SECURITY.md](https://github.com/sigrix-io/sigrix-mcp/blob/main/SECURITY.md) is where a vulnerability goes — not the tracker.
 
 ## Licence
 
