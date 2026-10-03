@@ -31,7 +31,7 @@ Give it to the server as `SIGRIX_SELLER_TOKEN`.
 claude mcp add sigrix -e SIGRIX_SELLER_TOKEN=sgx_... -- uvx sigrix-mcp
 ```
 
-**Claude Desktop** (`claude_desktop_config.json`) and **Cursor** (`.cursor/mcp.json`)
+**Claude Desktop** (`claude_desktop_config.json`) and **Cursor** (`~/.cursor/mcp.json`)
 
 ```json
 {
@@ -44,6 +44,8 @@ claude mcp add sigrix -e SIGRIX_SELLER_TOKEN=sgx_... -- uvx sigrix-mcp
   }
 }
 ```
+
+That is Cursor's user-level file. Keep the block out of a workspace `.cursor/mcp.json`: the token is in it, and a workspace file is easily committed.
 
 **VS Code** (`~/.copilot/mcp-config.json`)
 

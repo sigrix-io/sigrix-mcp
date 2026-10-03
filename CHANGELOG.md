@@ -6,6 +6,19 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- The README's *Configure your client* labelled the Claude Desktop and Cursor
+  block with `.cursor/mcp.json`, the file Cursor reads from a workspace, and
+  the seller token goes into that file with the block. A workspace file sits
+  in a project, where it is easily committed. The label now names Cursor's
+  user-level `~/.cursor/mcp.json`, and a line under the block says to keep the
+  token out of the workspace file, as the VS Code entry already did for its
+  own. `tests/test_readme.py` holds every file a client's label names to a
+  user-level one. The token card on the Sigrix account page labels the block
+  the same way. 0.2.1 reached PyPI with the old label; the next release
+  carries this one there. Nothing the server sends changes.
+
 ## [0.2.1] — 2026-10-03
 
 A PATCH release under `VERSIONING.md`: nothing in it changes a tool name, an
