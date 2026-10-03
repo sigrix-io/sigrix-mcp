@@ -5,17 +5,17 @@
 [![CI](https://github.com/sigrix-io/sigrix-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sigrix-io/sigrix-mcp/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/github/license/sigrix-io/sigrix-mcp)](https://github.com/sigrix-io/sigrix-mcp/blob/main/LICENSE)
 
-Publish prompt, persona and skill listings to [Sigrix](https://sigrix.io) from the AI client you already write in — Claude Code, Claude Desktop, Cursor, or any MCP client.
+Publish prompt, persona and skill listings to [Sigrix](https://sigrix.io) from the AI client you already write in — Claude Code, Claude Desktop, Cursor, VS Code, or any MCP client.
 
 A thin server over Sigrix's seller API. It carries no model calls, no validation of its own and no secret beyond your token. Every submission goes through Sigrix's moderation queue; nothing goes live from here.
 
 ## Install
 
-```sh
-uvx sigrix-mcp        # or: pipx install sigrix-mcp
-```
+Nothing to install or run by hand: your MCP client runs `uvx sigrix-mcp` itself, from the configuration below, whenever it starts the server. You need [uv](https://docs.astral.sh/uv/), which provides `uvx`, and Python 3.11 or newer.
 
-Python 3.11 or newer.
+Run by hand in a terminal, it prints one line to stderr saying it is an MCP server waiting for a client, then waits on stdin for a client's JSON-RPC, as every stdio MCP server does. Ctrl+C quits.
+
+`pipx install sigrix-mcp` is only for keeping a pinned, installed copy. The `command` in your client's configuration is then `sigrix-mcp`, with no `args`, and the Claude Code line ends `-- sigrix-mcp`.
 
 ## Get a token
 
@@ -44,6 +44,10 @@ claude mcp add sigrix -e SIGRIX_SELLER_TOKEN=sgx_... -- uvx sigrix-mcp
   }
 }
 ```
+
+**VS Code** (`~/.copilot/mcp-config.json`)
+
+The `mcpServers` block above, unchanged. That user-level file is the portable location VS Code prefers for new servers; with `COPILOT_HOME` set, it is `$COPILOT_HOME/mcp-config.json`. Keep the block out of a workspace `.mcp.json` or `.vscode/mcp.json`: the token is in it, and a workspace file is easily committed. An older VS Code that does not read the file has its own user `mcp.json` (**MCP: Open User Configuration**, now deprecated): put the entry there under `servers` rather than `mcpServers`, and add `"type": "stdio"` to it.
 
 `SIGRIX_BASE_URL` is optional and defaults to `https://sigrix.io`.
 

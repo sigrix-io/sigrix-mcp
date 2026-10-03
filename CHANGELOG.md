@@ -6,6 +6,13 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-10-03
+
+A PATCH release under `VERSIONING.md`: nothing in it changes a tool name, an
+argument, a request body or a description. An MCP client sees no difference
+beyond the version number; the one change in behaviour is a line on stderr for
+a person who starts the server in a terminal.
+
 ### Added
 
 - `tests/test_workflow_pins.py` asserts that every `uses:` in both workflows
@@ -88,6 +95,29 @@ described in `VERSIONING.md`.
   configuration for the pip and github-actions ecosystems — the same set the
   other open repositories carry. Dependabot is also what keeps the publish
   action's commit pin current, which nothing moved before.
+
+### Fixed
+
+- Started by hand in a terminal, the server now says what it is doing: one
+  line on **stderr**, naming it an MCP server waiting for an MCP client on
+  stdin, pointing at the README's *Configure your client*, and saying Ctrl+C
+  quits. Then it serves as before, so JSON-RPC typed in by hand is still
+  answered. A seller on macOS pasted the README's install line into a terminal
+  and saw nothing until Ctrl+C: the token check had passed, and the SDK was
+  waiting, correctly and silently, for a first message that was never coming.
+  The line appears only when stdin is a terminal, which it never is when a
+  client launches the server (a client hands it a pipe), and never on stdout,
+  the protocol channel. `tests/test_main.py` pins both, in-process and against
+  the running server on a pseudo-terminal.
+- The README's *Install* section put `uvx sigrix-mcp` in a code block, as if it
+  were the install step, and that is the line the seller ran. It now says the
+  MCP client runs that command itself, so there is nothing to install or run
+  by hand, and that `pipx install sigrix-mcp` is only for a pinned, installed
+  copy, whose `command` is then `sigrix-mcp`. *Configure your client* gains
+  **VS Code**: the same `mcpServers` block in the user-level
+  `~/.copilot/mcp-config.json`, the portable file VS Code's documentation now
+  prefers for new servers, rather than a workspace file the token could be
+  committed in.
 
 ### Security
 
