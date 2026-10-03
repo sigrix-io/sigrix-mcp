@@ -9,9 +9,10 @@ described in `VERSIONING.md`.
 ## [0.2.1] — 2026-10-03
 
 A PATCH release under `VERSIONING.md`: nothing in it changes a tool name, an
-argument, a request body or a description. An MCP client sees no difference
-beyond the version number; the one change in behaviour is a line on stderr for
-a person who starts the server in a terminal.
+argument, a request body or a description. What an MCP client sees changes in
+one place: a tool call that fails now carries the reason, where it carried
+only `Error executing tool <name>`. A person who starts the server in a
+terminal also gets a line on stderr saying what it is waiting for.
 
 ### Added
 
@@ -98,6 +99,20 @@ a person who starts the server in a terminal.
 
 ### Fixed
 
+- A tool that fails now tells the model why. From mcp 2.1 the SDK reports
+  anything a tool raises other than `ToolError` as a bare `Error executing tool
+  <name>`, keeping the reason on the server's stderr, and every failure this
+  server anticipates was raised some other way — so the platform's own words
+  never reached the model: not the publish gate's missing labels on a refused
+  `submit_for_review`, not the version pin's "upgrade", not the SKILL.md
+  parser's message. A seller's `import_skill_md` failed twice with nothing else
+  to go on. A refusal from the platform, an argument a tool refuses itself, a
+  file it cannot read or write and a platform it cannot reach are now raised as
+  `ToolError`; anything else is still a crash, and its text still stays on the
+  server. The tests read failures through a real client session now, because
+  calling a tool function directly skips the layer that decides what the model
+  sees — which is how the suite stayed green throughout. No tool name,
+  argument, description or request body changes.
 - Started by hand in a terminal, the server now says what it is doing: one
   line on **stderr**, naming it an MCP server waiting for an MCP client on
   stdin, pointing at the README's *Configure your client*, and saying Ctrl+C

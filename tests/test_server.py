@@ -6,6 +6,10 @@ still answers those requests is a question only the platform can answer, and
 it does: Sigrix carries an integration test that drives the route behind every
 tool here with a real seller token, so a route or a body that moves fails
 there, where it can be fixed, rather than going stale here.
+
+What the model reads when a call fails is pinned through a real client session
+(`_model_reads`), because calling a tool function directly skips the layer
+that decides it.
 """
 
 from __future__ import annotations
@@ -13,13 +17,16 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
+from mcp import Client
+from mcp.server.mcpserver.exceptions import ToolError
 
 from sigrix_mcp import SUPPORTED_API_VERSION
 from sigrix_mcp import server as srv
-from sigrix_mcp.client import SigrixApiError, SigrixApiVersionError, SigrixClient, SigrixConfigError
+from sigrix_mcp.client import SigrixApiError, SigrixClient, SigrixConfigError
 
 TOKEN = "sgx_test-token-value"  # noqa: S105 - a fixture, not a credential
 
@@ -101,6 +108,28 @@ def platform() -> FakePlatform:
     srv.configure(None)
 
 
+def _model_reads(calls: dict[str, dict[str, Any]]) -> dict[str, tuple[bool, str]]:
+    """Each call's error flag and text, as a client session hands them to the model.
+
+    Through the SDK, not around it: from mcp 2.1 the SDK withholds the text of
+    anything a tool raises other than `ToolError`, and every refusal this server
+    relays reached the model as a bare ``Error executing tool <name>`` while the
+    tests that called the tool functions directly stayed green.
+    """
+
+    async def run() -> dict[str, tuple[bool, str]]:
+        read: dict[str, tuple[bool, str]] = {}
+        async with Client(srv.server) as client:
+            for name, arguments in calls.items():
+                # By alias, so this reads the wire's `isError` whatever the SDK names the attribute.
+                result = (await client.call_tool(name, arguments)).model_dump(by_alias=True)
+                text = " ".join(str(part.get("text", "")) for part in result["content"])
+                read[name] = (bool(result.get("isError")), text)
+        return read
+
+    return asyncio.run(run())
+
+
 def test_every_tool_and_prompt_is_registered():
     tools = asyncio.run(srv.server.list_tools())
     assert sorted(tool.name for tool in tools) == sorted(
@@ -135,18 +164,38 @@ def test_the_update_description_quotes_the_platforms_own_field_names():
         assert field in tools["update_draft"].description
 
 
-def test_a_version_the_release_does_not_know_refuses_every_tool():
+def test_a_version_the_release_does_not_know_refuses_every_tool(tmp_path: Path):
+    """Every tool, called as a client calls it, tells the model why and what to do about it."""
+
+    skill = tmp_path / "SKILL.md"
+    skill.write_text("---\nname: s\ndescription: d\n---\n\nbody\n", encoding="utf-8")
+    calls: dict[str, dict[str, Any]] = {
+        "list_categories": {},
+        "list_my_listings": {},
+        "get_listing": {"item_type": "prompt", "item_id": "p1"},
+        "create_draft": {"item_type": "prompt", "name": "x"},
+        "update_draft": {"item_type": "prompt", "item_id": "p1", "fields": {"name": "x"}},
+        "check_draft": {"item_type": "prompt", "item_id": "p1"},
+        "submit_for_review": {"item_type": "prompt", "item_id": "p1"},
+        "import_skill_md": {"path": str(skill), "category": "writing-content"},
+        "export_skill_md": {"item_id": "s1"},
+    }
+    # The table is the sweep's canary: a tool registered without a row here
+    # fails this line rather than going unswept.
+    assert sorted(calls) == sorted(tool.name for tool in asyncio.run(srv.server.list_tools()))
+
     fake = FakePlatform(api_version="2")
     srv.configure(
         SigrixClient(base_url="https://sigrix.test", token=TOKEN, transport=httpx.MockTransport(fake.handler))
     )
     try:
-        with pytest.raises(SigrixApiVersionError):
-            srv.list_my_listings()
-        with pytest.raises(SigrixApiVersionError):
-            srv.create_draft("prompt", "x")
+        read = _model_reads(calls)
     finally:
         srv.configure(None)
+    for name, (is_error, text) in read.items():
+        assert is_error, name
+        assert "serves seller API version '2'" in text, (name, text)
+        assert "Upgrade sigrix-mcp" in text, (name, text)
 
 
 def test_create_check_and_a_refused_submit(platform: FakePlatform):
@@ -168,11 +217,13 @@ def test_create_check_and_a_refused_submit(platform: FakePlatform):
     assert verdict["missing"] == ["Main prompt"]
     assert platform.requests[-1].method == "POST" and platform.requests[-1].url.path == "/api/items/prompt/p1/check"
 
-    with pytest.raises(SigrixApiError) as refused:
+    with pytest.raises(ToolError) as refused:
         srv.submit_for_review("prompt", "p1")
-    assert refused.value.status_code == 422
-    assert refused.value.code == "incomplete_listing"
-    assert "Main prompt" in refused.value.message
+    cause = refused.value.__cause__
+    assert isinstance(cause, SigrixApiError)
+    assert cause.status_code == 422
+    assert cause.code == "incomplete_listing"
+    assert "Main prompt" in cause.message
 
 
 def test_update_sends_the_fields_verbatim_and_refuses_an_empty_object(platform: FakePlatform):
@@ -180,7 +231,7 @@ def test_update_sends_the_fields_verbatim_and_refuses_an_empty_object(platform: 
     saved = srv.update_draft("prompt", "p1", fields)
     assert saved["item"] == fields
     assert platform.requests[-1].method == "PATCH"
-    with pytest.raises(ValueError):
+    with pytest.raises(ToolError, match="fields must be a non-empty object"):
         srv.update_draft("prompt", "p1", {})
 
 
@@ -189,7 +240,7 @@ def test_list_and_get(platform: FakePlatform):
     assert srv.list_my_listings("skill")["items"] == []
     assert platform.requests[-1].url.params["item_type"] == "skill"
     assert srv.get_listing("persona", "abc")["item"]["id"] == "abc"
-    with pytest.raises(ValueError):
+    with pytest.raises(ToolError, match="item_type must be one of prompt, persona, skill"):
         srv.get_listing("crew", "abc")
 
 
@@ -267,3 +318,58 @@ def test_a_label_is_omitted_rather_than_guessed_for_a_real_union():
     assert srv._type_label({"type": "array", "items": {"type": "string"}}) == "string[]"
     assert srv._type_label(None) == ""
     assert srv._type_label({}) == ""
+
+
+# ---------------------------------------------------------------------------
+# What the model reads when a call fails
+# ---------------------------------------------------------------------------
+
+
+def test_a_refusal_reaches_the_model_in_its_own_words(platform: FakePlatform, tmp_path: Path):
+    """The platform's sentence, this side's argument check and the file's own error, each in full.
+
+    A seller's `import_skill_md` failed twice as ``Error executing tool
+    import_skill_md`` and nothing else. The parser's reason was on the server's
+    stderr, where the model retrying the call could not see it.
+    """
+
+    missing = tmp_path / "nowhere" / "SKILL.md"
+    read = _model_reads(
+        {
+            "submit_for_review": {"item_type": "prompt", "item_id": "p1"},
+            "get_listing": {"item_type": "crew", "item_id": "p1"},
+            "import_skill_md": {"path": str(missing), "category": "writing-content"},
+        }
+    )
+
+    is_error, text = read["submit_for_review"]
+    assert is_error
+    assert "Sigrix answered 422" in text
+    assert "Finish the required fields before submitting: Main prompt." in text
+
+    is_error, text = read["get_listing"]
+    assert is_error
+    assert "item_type must be one of prompt, persona, skill; got 'crew'." in text
+
+    # The same read the tool makes, so the expected text is the OS's own wording.
+    with pytest.raises(OSError) as unreadable:
+        missing.read_text(encoding="utf-8")
+    is_error, text = read["import_skill_md"]
+    assert is_error
+    assert str(unreadable.value) in text
+
+
+def test_an_unanticipated_failure_keeps_its_own_type():
+    """Only the failures the model can act on are reported. Anything else stays a
+    crash, whose text the SDK keeps on the server: a bug's internals are not the
+    model's to read, and widening the net to `Exception` would hand them over."""
+
+    def broken(request: httpx.Request) -> httpx.Response:
+        raise KeyError("an internal detail")
+
+    srv.configure(SigrixClient(base_url="https://sigrix.test", token=TOKEN, transport=httpx.MockTransport(broken)))
+    try:
+        with pytest.raises(KeyError):
+            srv.list_my_listings()
+    finally:
+        srv.configure(None)

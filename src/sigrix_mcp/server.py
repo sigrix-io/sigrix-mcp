@@ -7,19 +7,25 @@ file for the field names rather than restating them by hand.
 
 Every tool that changes anything says so in its description: a submission
 goes to moderation, and nothing goes live from here.
+
+Every tool's failure reaches the model in its own words: see `_reported`.
 """
 
 from __future__ import annotations
 
+import functools
 import json
+from collections.abc import Callable
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 
+import httpx
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from . import SUPPORTED_API_VERSION, __version__
-from .client import SigrixClient
+from .client import SigrixClient, SigrixError
 from .guidance import FLOW, GUIDANCE_BY_TYPE
 
 #: The listing types this release covers (the platform's v1 seller API).
@@ -140,6 +146,40 @@ def _check_type(item_type: str) -> str:
     return normalized
 
 
+#: The failures a tool expects and the model should read: the platform refusing
+#: (`SigrixError` carries its own words), an argument this side refuses
+#: (`ValueError`), a file that cannot be read or written (`OSError`), and a
+#: platform that cannot be reached (`httpx.HTTPError`).
+_ANTICIPATED_FAILURES: tuple[type[Exception], ...] = (SigrixError, ValueError, OSError, httpx.HTTPError)
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def _reported(tool: Callable[_P, _R]) -> Callable[_P, _R]:
+    """Raise an anticipated failure as `ToolError`, so the model reads why the call failed.
+
+    From mcp 2.1 the SDK treats anything a tool raises as a crash unless it is a
+    `ToolError`: the model reads only ``Error executing tool <name>``, and the
+    reason goes to the server's stderr, which nobody in the chat sees. That hid
+    every refusal this server exists to relay — the publish gate's missing
+    labels on a submit, the version pin's "upgrade", the SKILL.md parser's
+    message — and left a seller retrying an import that could never succeed.
+
+    Anything outside `_ANTICIPATED_FAILURES` is still a crash, and the SDK still
+    withholds its text.
+    """
+
+    @functools.wraps(tool)
+    def call(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        try:
+            return tool(*args, **kwargs)
+        except _ANTICIPATED_FAILURES as exc:
+            raise ToolError(str(exc)) from exc
+
+    return call
+
+
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
@@ -152,6 +192,7 @@ def _check_type(item_type: str) -> str:
         "any other. Public; no token needed."
     )
 )
+@_reported
 def list_categories() -> dict[str, Any]:
     return _sigrix().get_json("/api/categories")
 
@@ -163,6 +204,7 @@ def list_categories() -> dict[str, Any]:
         "Optionally narrow to one item_type."
     )
 )
+@_reported
 def list_my_listings(item_type: str | None = None) -> dict[str, Any]:
     params = {"item_type": _check_type(item_type)} if item_type else None
     return _sigrix().get_json("/api/items/mine", params=params)
@@ -174,6 +216,7 @@ def list_my_listings(item_type: str | None = None) -> dict[str, Any]:
         "the current status. item_type is prompt, persona or skill."
     )
 )
+@_reported
 def get_listing(item_type: str, item_id: str) -> dict[str, Any]:
     return _sigrix().get_json(f"/api/items/{_check_type(item_type)}/{item_id}")
 
@@ -186,6 +229,7 @@ def get_listing(item_type: str, item_id: str) -> dict[str, Any]:
         "fields afterwards with update_draft. The draft is private until submitted. " + MODERATION_NOTE
     )
 )
+@_reported
 def create_draft(
     item_type: str,
     name: str,
@@ -219,6 +263,7 @@ def create_draft(
         "pending_review cannot be edited until a moderator returns it. " + MODERATION_NOTE
     )
 )
+@_reported
 def update_draft(item_type: str, item_id: str, fields: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(fields, dict) or not fields:
         raise ValueError("fields must be a non-empty object of ItemUpdate fields.")
@@ -234,6 +279,7 @@ def update_draft(item_type: str, item_id: str, fields: dict[str, Any]) -> dict[s
         "Call it before submit_for_review and after every fix; it is the authority, not this description."
     )
 )
+@_reported
 def check_draft(item_type: str, item_id: str) -> dict[str, Any]:
     return _sigrix().post_json(f"/api/items/{_check_type(item_type)}/{item_id}/check")
 
@@ -245,6 +291,7 @@ def check_draft(item_type: str, item_id: str) -> dict[str, Any]:
         "still missing — run check_draft first. " + MODERATION_NOTE
     )
 )
+@_reported
 def submit_for_review(item_type: str, item_id: str) -> dict[str, Any]:
     return _sigrix().post_json(f"/api/items/{_check_type(item_type)}/{item_id}/submit")
 
@@ -258,6 +305,7 @@ def submit_for_review(item_type: str, item_id: str) -> dict[str, Any]:
         "exists. " + MODERATION_NOTE
     )
 )
+@_reported
 def import_skill_md(path: str, category: str, tags: list[str] | None = None) -> dict[str, Any]:
     file_path = Path(path).expanduser()
     markdown = file_path.read_text(encoding="utf-8")
@@ -271,6 +319,7 @@ def import_skill_md(path: str, category: str, tags: list[str] | None = None) -> 
         "buyer downloads. Returns the markdown; when `path` is given, also writes it there."
     )
 )
+@_reported
 def export_skill_md(item_id: str, path: str | None = None) -> dict[str, Any]:
     markdown = _sigrix().get_text(f"/api/items/skill/{item_id}/skill.md")
     written: str | None = None
