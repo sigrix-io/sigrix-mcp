@@ -6,6 +6,13 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-10-03
+
+A PATCH release under `VERSIONING.md`, and a README-only one: nothing in it
+changes a tool name, an argument, a request body or a description, and the
+server sends nothing new. It exists to carry *Configure your client* to PyPI,
+where 0.2.1's page tells Cursor users to put their token in a workspace file.
+
 ### Fixed
 
 - The README's *Configure your client* labelled the Claude Desktop and Cursor
@@ -16,8 +23,20 @@ described in `VERSIONING.md`.
   token out of the workspace file, as the VS Code entry already did for its
   own. `tests/test_readme.py` holds every file a client's label names to a
   user-level one. The token card on the Sigrix account page labels the block
-  the same way. 0.2.1 reached PyPI with the old label; the next release
-  carries this one there. Nothing the server sends changes.
+  the same way. 0.2.1 reached PyPI with the old label; this release carries
+  the new one there.
+- The README's VS Code entry pointed at the Claude Desktop and Cursor block,
+  unchanged, for `~/.copilot/mcp-config.json`. That file is GitHub Copilot
+  CLI's as much as VS Code's, and Copilot's CLI reference requires `tools` on a
+  local server and recommends `"type": "stdio"` for a configuration VS Code
+  also reads. Copilot CLI 1.0.91 does load the unchanged block, filling in
+  `"tools": ["*"]` itself (`copilot mcp list --json` shows it), but that is a
+  default rather than the documented contract. The entry now has a block of
+  its own with both keys, which is the block the Sigrix account card prints
+  for VS Code, and the line for an older VS Code says to leave `tools` out of
+  its `mcp.json`. `tests/test_readme.py` parses every block in the section and
+  holds VS Code's to the Claude Desktop and Cursor block plus exactly those two
+  keys.
 
 ## [0.2.1] — 2026-10-03
 

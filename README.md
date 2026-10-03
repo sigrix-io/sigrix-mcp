@@ -49,7 +49,21 @@ That is Cursor's user-level file. Keep the block out of a workspace `.cursor/mcp
 
 **VS Code** (`~/.copilot/mcp-config.json`)
 
-The `mcpServers` block above, unchanged. That user-level file is the portable location VS Code prefers for new servers; with `COPILOT_HOME` set, it is `$COPILOT_HOME/mcp-config.json`. Keep the block out of a workspace `.mcp.json` or `.vscode/mcp.json`: the token is in it, and a workspace file is easily committed. An older VS Code that does not read the file has its own user `mcp.json` (**MCP: Open User Configuration**, now deprecated): put the entry there under `servers` rather than `mcpServers`, and add `"type": "stdio"` to it.
+```json
+{
+  "mcpServers": {
+    "sigrix": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["sigrix-mcp"],
+      "env": { "SIGRIX_SELLER_TOKEN": "sgx_..." },
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+That user-level file is the portable location VS Code prefers for new servers, and GitHub Copilot CLI's own; with `COPILOT_HOME` set, it is `$COPILOT_HOME/mcp-config.json`. The block is the one above with two keys added for Copilot: its reference requires `tools` on a local server, and `"type": "stdio"` is the type it recommends for a configuration VS Code also reads. Keep the block out of a workspace `.mcp.json` or `.vscode/mcp.json`: the token is in it, and a workspace file is easily committed. An older VS Code that does not read the file has its own user `mcp.json` (**MCP: Open User Configuration**, now deprecated): put the entry there under `servers` rather than `mcpServers`, and leave out `tools`.
 
 `SIGRIX_BASE_URL` is optional and defaults to `https://sigrix.io`.
 
