@@ -5,7 +5,7 @@
 [![CI](https://github.com/sigrix-io/sigrix-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sigrix-io/sigrix-mcp/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/github/license/sigrix-io/sigrix-mcp)](https://github.com/sigrix-io/sigrix-mcp/blob/main/LICENSE)
 
-Publish prompt, persona and skill listings to [Sigrix](https://sigrix.io) from the AI client you already write in — Claude Code, Claude Desktop, Cursor, VS Code, or any MCP client.
+Publish prompt, persona, skill, MCP server and assistant listings to [Sigrix](https://sigrix.io) from the AI client you already write in — Claude Code, Claude Desktop, Cursor, VS Code, or any MCP client.
 
 A thin server over Sigrix's seller API. It carries no model calls, no validation of its own and no secret beyond your token. Every submission goes through Sigrix's moderation queue; nothing goes live from here.
 
@@ -83,13 +83,17 @@ Tools:
 | `import_skill_md` | A SKILL.md on disk becomes a draft skill. |
 | `export_skill_md` | A draft skill back as SKILL.md. |
 
-Prompts: `draft_prompt_listing`, `draft_persona_listing`, `draft_skill_listing` — the brief a good listing of each type is written to. Give one an idea and it drafts, checks and asks you before submitting.
+Prompts: `draft_prompt_listing`, `draft_persona_listing`, `draft_skill_listing`, `draft_mcp_server_listing`, `draft_assistant_listing` — the brief a good listing of each type is written to. Give one an idea and it drafts, checks and asks you before submitting.
+
+Every tool that takes an `item_type` takes one of `prompt`, `persona`, `skill`, `mcp_server` and `assistant`: the types Sigrix lets every seller list. Crews, agents and workforces are built in Sigrix's own editors, which record the test run each needs before review.
 
 The server pins the seller API version it was written against and refuses to run against a platform that serves another one; upgrade when it tells you to.
 
 ## What it does not do
 
 It does not publish anything. A submitted listing is `pending_review` until a moderator approves it, and you can keep editing it in the web wizard at the `edit_url` every tool returns. It does not read your purchases or anyone else's listings, and it never sends your token anywhere but the `Authorization` header of requests to the base URL you configured.
+
+It uploads no file but a SKILL.md. A paid MCP server is one Sigrix delivers, so its package goes up from the listing's web form (or your CI), and each document an assistant asks its buyer for needs a sample, uploaded in its web wizard; `check_draft` says when either is what is left.
 
 ## Where it fits
 

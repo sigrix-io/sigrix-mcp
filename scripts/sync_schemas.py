@@ -57,11 +57,23 @@ TARGET = Path(__file__).resolve().parents[1] / "src" / "sigrix_mcp" / "seller_ap
 PROSE_KEYS = ("description", "summary")
 
 
-def _strip_prose(node: object) -> object:
-    """Every ``description`` and ``summary``, at any depth, removed."""
+def _strip_prose(node: object, *, names: bool = False) -> object:
+    """Every ``description`` and ``summary``, at any depth, removed — as prose, never as a field's name.
+
+    A schema's ``properties`` maps field names to schemas, and two of the seller
+    API's fields are called exactly that: a listing's ``description`` and an MCP
+    server's ``summary``. Stripped as if they were prose, both vanished from every
+    model that carries them, so no tool description could list them as accepted
+    keys. ``names`` marks a ``properties`` mapping: its keys stay, and each field's
+    own schema is stripped like any other.
+    """
 
     if isinstance(node, dict):
-        return {key: _strip_prose(value) for key, value in node.items() if key not in PROSE_KEYS}
+        return {
+            key: _strip_prose(value, names=key == "properties" and not names)
+            for key, value in node.items()
+            if names or key not in PROSE_KEYS
+        }
     if isinstance(node, list):
         return [_strip_prose(item) for item in node]
     return node
