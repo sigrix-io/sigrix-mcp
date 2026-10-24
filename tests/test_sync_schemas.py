@@ -37,10 +37,10 @@ def test_a_field_named_like_prose_keeps_its_name_and_loses_its_prose():
             "/api/items/register": {
                 "post": {
                     "summary": "Api Register Item",
-                    "description": "Create a draft item (#6034, `_private_helper`).",
+                    "description": "Create a draft item; the handler's notes for its maintainers, `_private_helper`.",
                     "parameters": [
                         {"name": "item_type", "in": "query", "description": "One of prompt, persona."},
-                        {"name": "x-moderator-override", "in": "header"},
+                        {"name": "x-another-role", "in": "header"},
                     ],
                 }
             }
@@ -48,7 +48,7 @@ def test_a_field_named_like_prose_keeps_its_name_and_loses_its_prose():
         "components": {
             "schemas": {
                 "ItemUpdate": {
-                    "description": "Payload for the PATCH route (#4386).",
+                    "description": "Payload for the PATCH route, as its maintainers describe it.",
                     "properties": {
                         "description": _field("Description", prose="The listing's text."),
                         "summary": _field("Summary", prose="An MCP server's line."),
