@@ -58,6 +58,10 @@ three types it already covered.
   but a SKILL.md: a paid MCP server's package and an assistant's document
   samples go up from the web form, and `check_draft` says when either is what
   is left.
+- The README carries the project's logo above its title, and readers in
+  GitHub's dark mode are shown a version drawn for it. The README is the PyPI
+  page too, so the next release carries the logo there. Nothing in the package
+  changes.
 
 ## [0.2.2] — 2026-10-03
 
