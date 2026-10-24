@@ -1,4 +1,4 @@
-"""The MCP server: nine tools and three prompts over the Sigrix seller API.
+"""The MCP server: nine tools and five prompts over the Sigrix seller API.
 
 Every tool is one request to one route. The routes, their bodies and the
 version this release pins are the platform's (``seller_api_openapi.json``,
@@ -26,10 +26,13 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from . import SUPPORTED_API_VERSION, __version__
 from .client import SigrixClient, SigrixError
-from .guidance import FLOW, GUIDANCE_BY_TYPE
+from .guidance import FLOW, GUIDANCE_BY_TYPE, TYPE_LABELS
 
-#: The listing types this release covers (the platform's v1 seller API).
-LISTING_TYPES = ("prompt", "persona", "skill")
+#: The listing types this release covers: the three the seller API served from
+#: v1, and the two the platform has since opened to every seller, the MCP server
+#: and the assistant. Crews, agents and workforces are built in the platform's
+#: own editors, which record the test run each needs before review.
+LISTING_TYPES = ("prompt", "persona", "skill", "mcp_server", "assistant")
 
 MODERATION_NOTE = (
     "Nothing goes live from this tool: a submitted listing enters Sigrix's moderation queue as "
@@ -108,17 +111,32 @@ def _typed_fields(component: str) -> list[str]:
     return out
 
 
+def _type_list(item_types: tuple[str, ...]) -> str:
+    """``prompt, persona, skill, MCP server and assistant``: the types in words, in order."""
+    labels = [TYPE_LABELS[item_type] for item_type in item_types]
+    return ", ".join(labels[:-1]) + " and " + labels[-1] if len(labels) > 1 else "".join(labels)
+
+
+def _name_list(names: tuple[str, ...]) -> str:
+    """Each name in backticks, joined as a sentence lists them."""
+    quoted = [f"`{name}`" for name in names]
+    return ", ".join(quoted[:-1]) + " and " + quoted[-1] if len(quoted) > 1 else "".join(quoted)
+
+
 ITEM_REGISTRATION_FIELDS = _schema_fields("ItemRegistration")
 ITEM_UPDATE_FIELDS = _schema_fields("ItemUpdate")
 ITEM_UPDATE_TYPED_FIELDS = _typed_fields("ItemUpdate")
 
+#: The prompt each type's brief is served as, in the order the types are listed.
+DRAFT_PROMPT_NAMES = tuple(f"draft_{item_type}_listing" for item_type in LISTING_TYPES)
+
 INSTRUCTIONS = f"""\
-Sigrix is a marketplace for prompts, personas and skills. This server publishes listings to it on
-behalf of the seller whose token it holds (sigrix-mcp {__version__}, seller API {SUPPORTED_API_VERSION}).
+Sigrix is a marketplace of AI building blocks. This server publishes {_type_list(LISTING_TYPES)} listings
+to it on behalf of the seller whose token it holds (sigrix-mcp {__version__}, seller API {SUPPORTED_API_VERSION}).
 
 {FLOW}
-Use the `draft_prompt_listing`, `draft_persona_listing` and `draft_skill_listing` prompts for what a
-good listing of each type looks like; `check_draft` is the authority on what is still missing.
+Use the {_name_list(DRAFT_PROMPT_NAMES)} prompts for what a good listing of each type looks like;
+`check_draft` is the authority on what is still missing.
 """
 
 server = MCPServer(name="sigrix", version=__version__, instructions=INSTRUCTIONS)
@@ -199,7 +217,8 @@ def list_categories() -> dict[str, Any]:
 
 @server.tool(
     description=(
-        "List the seller's own listings — prompts, personas and skills, any status — newest first. "
+        "List the seller's own listings — prompts, personas, skills, MCP servers and assistants, any "
+        "status — newest first. "
         "Each row carries id, item_type, name, status, category, tags, timestamps and the web editor URL. "
         "Optionally narrow to one item_type."
     )
@@ -213,7 +232,7 @@ def list_my_listings(item_type: str | None = None) -> dict[str, Any]:
 @server.tool(
     description=(
         "Read one of the seller's listings in full, as the web editor loads it: every content field and "
-        "the current status. item_type is prompt, persona or skill."
+        "the current status. item_type is prompt, persona, skill, mcp_server or assistant."
     )
 )
 @_reported
@@ -224,9 +243,12 @@ def get_listing(item_type: str, item_id: str) -> dict[str, Any]:
 @server.tool(
     description=(
         "Create a new draft listing owned by the seller and return its id and web editor URL. "
-        "item_type is prompt, persona or skill; name is the title (at most 80 characters); description "
-        "should be at least 200 characters; category is a slug from list_categories. Fill the content "
-        "fields afterwards with update_draft. The draft is private until submitted. " + MODERATION_NOTE
+        "item_type is prompt, persona, skill, mcp_server or assistant; name is the title (at most 80 "
+        "characters); description should be at least 200 characters, except for an mcp_server, where it "
+        "becomes the listing's one-line summary; category is a slug from list_categories. price_cents is "
+        "0 for free; an mcp_server is free unless Sigrix delivers it as an uploaded package (see "
+        "draft_mcp_server_listing). Fill the content fields afterwards with update_draft. The draft is "
+        "private until submitted. " + MODERATION_NOTE
     )
 )
 @_reported
@@ -255,10 +277,12 @@ def create_draft(
         "seller API's ItemUpdate fields — for a prompt: main_prompt, context, rules, when_responding, "
         "output_format and scenarios (a list of {user_input, assistant_response}); for a persona: "
         "main_prompt plus tone, tagline, greeting, behavioral_notes; for a skill: instructions, license, "
-        "compatibility, allowed_tools, skill_metadata; for any: name, description, category, tags, "
-        "price_cents, seo_title. Accepted keys, with the type each one takes: "
-        + ", ".join(ITEM_UPDATE_TYPED_FIELDS)
-        + ". "
+        "compatibility, allowed_tools, skill_metadata; for an mcp_server: summary, server (one object: "
+        "name, command, args, env, tools, auth_command), example_input, example_output; for an "
+        "assistant: main_prompt, example_input, example_output, more_examples (a list of {input, "
+        "output}), skill_refs, persona_ref, prompt_ref, mcp_requirements, knowledge; for any: name, "
+        "description, category, tags, price_cents, seo_title. "
+        "Accepted keys, with the type each one takes: " + ", ".join(ITEM_UPDATE_TYPED_FIELDS) + ". "
         "The answer carries the saved record and its publish_eligibility. A listing that is "
         "pending_review cannot be edited until a moderator returns it. " + MODERATION_NOTE
     )
@@ -339,7 +363,7 @@ def _brief(item_type: str, idea: str) -> str:
     guidance = GUIDANCE_BY_TYPE[item_type]
     idea_line = f"\n\nThe seller's idea: {idea.strip()}\n" if idea.strip() else "\n"
     return (
-        f"Draft a Sigrix {item_type} listing and publish it through the sigrix tools.\n\n"
+        f"Draft a Sigrix {TYPE_LABELS[item_type]} listing and publish it through the sigrix tools.\n\n"
         f"{guidance}\n{FLOW}{idea_line}"
         "Work in this order: list_categories, create_draft, update_draft, check_draft until eligible, "
         "then ask the seller before submit_for_review."
@@ -363,7 +387,23 @@ def draft_skill_listing(idea: str = "") -> str:
     return _brief("skill", idea)
 
 
+@server.prompt(
+    description=(
+        "Draft an MCP server listing — the launch a buyer's AI client runs — from an idea or an existing "
+        "server, and take it to review through the sigrix tools."
+    )
+)
+def draft_mcp_server_listing(idea: str = "") -> str:
+    return _brief("mcp_server", idea)
+
+
+@server.prompt(description="Draft an assistant listing from an idea and take it to review through the sigrix tools.")
+def draft_assistant_listing(idea: str = "") -> str:
+    return _brief("assistant", idea)
+
+
 __all__ = [
+    "DRAFT_PROMPT_NAMES",
     "ITEM_REGISTRATION_FIELDS",
     "ITEM_UPDATE_FIELDS",
     "ITEM_UPDATE_TYPED_FIELDS",

@@ -150,10 +150,13 @@ def test_every_tool_and_prompt_is_registered():
             assert "moderation" in tool.description.lower(), tool.name
     prompts = asyncio.run(srv.server.list_prompts())
     assert sorted(prompt.name for prompt in prompts) == [
+        "draft_assistant_listing",
+        "draft_mcp_server_listing",
         "draft_persona_listing",
         "draft_prompt_listing",
         "draft_skill_listing",
     ]
+    assert sorted(srv.DRAFT_PROMPT_NAMES) == sorted(prompt.name for prompt in prompts)
 
 
 def test_the_update_description_quotes_the_platforms_own_field_names():
@@ -349,7 +352,7 @@ def test_a_refusal_reaches_the_model_in_its_own_words(platform: FakePlatform, tm
 
     is_error, text = read["get_listing"]
     assert is_error
-    assert "item_type must be one of prompt, persona, skill; got 'crew'." in text
+    assert "item_type must be one of prompt, persona, skill, mcp_server, assistant; got 'crew'." in text
 
     # The same read the tool makes, so the expected text is the OS's own wording.
     with pytest.raises(OSError) as unreadable:
@@ -373,3 +376,127 @@ def test_an_unanticipated_failure_keeps_its_own_type():
             srv.list_my_listings()
     finally:
         srv.configure(None)
+
+
+# ---------------------------------------------------------------------------
+# The two types opened to every seller after v1: MCP servers and assistants
+# ---------------------------------------------------------------------------
+
+#: The keys each type's half of `update_draft`'s description tells the model to
+#: send. Every one has to be a key the platform's own schema declares, or the
+#: description names a field the vendored document does not.
+FIELDS_THE_DESCRIPTION_NAMES = {
+    "mcp_server": ("summary", "server", "example_input", "example_output"),
+    "assistant": (
+        "main_prompt",
+        "example_input",
+        "example_output",
+        "skill_refs",
+        "persona_ref",
+        "prompt_ref",
+        "mcp_requirements",
+        "knowledge",
+    ),
+}
+
+#: The one key the description names that the schema leaves undeclared. The
+#: platform takes it (its update body allows extra keys) and refuses a malformed
+#: one in its adapter's own words, which a typed field would answer first.
+UNDECLARED_KEYS_THE_DESCRIPTION_NAMES = ("more_examples",)
+
+
+def test_the_listing_types_are_the_three_of_v1_and_the_two_opened_since():
+    assert srv.LISTING_TYPES == ("prompt", "persona", "skill", "mcp_server", "assistant")
+
+
+@pytest.mark.parametrize("item_type", ["mcp_server", "assistant"])
+def test_each_new_type_reaches_the_same_routes_as_the_others(platform: FakePlatform, item_type: str):
+    created = srv.create_draft(item_type, "Deploy helper", description="Freeze deploys before a release.")
+    assert created["item_type"] == item_type
+    assert json.loads(platform.requests[-1].content)["item_type"] == item_type
+
+    srv.get_listing(item_type, "x1")
+    srv.update_draft(item_type, "x1", {"name": "Deploy helper"})
+    srv.check_draft(item_type, "x1")
+    with pytest.raises(ToolError):
+        srv.submit_for_review(item_type, "x1")
+    assert [(request.method, request.url.path) for request in platform.requests[-4:]] == [
+        ("GET", f"/api/items/{item_type}/x1"),
+        ("PATCH", f"/api/items/{item_type}/x1"),
+        ("POST", f"/api/items/{item_type}/x1/check"),
+        ("POST", f"/api/items/{item_type}/x1/submit"),
+    ]
+
+    srv.list_my_listings(item_type)
+    assert platform.requests[-1].url.params["item_type"] == item_type
+
+
+def test_an_mcp_servers_launch_is_sent_whole_as_one_object(platform: FakePlatform):
+    fields = {
+        "summary": "Read and create calendar events.",
+        "server": {
+            "name": "calendar",
+            "command": "npx",
+            "args": ["-y", "@vendor/mcp-calendar"],
+            "env": ["CALENDAR_API_KEY"],
+            "tools": ["list-events", "create-event"],
+        },
+    }
+    srv.update_draft("mcp_server", "m1", fields)
+    assert json.loads(platform.requests[-1].content) == fields
+
+
+@pytest.mark.parametrize("item_type", sorted(FIELDS_THE_DESCRIPTION_NAMES))
+def test_every_field_the_description_names_for_a_new_type_is_one_the_schema_declares(item_type: str):
+    tools = {tool.name: tool for tool in asyncio.run(srv.server.list_tools())}
+    description = tools["update_draft"].description
+    for field in FIELDS_THE_DESCRIPTION_NAMES[item_type]:
+        assert field in srv.ITEM_UPDATE_FIELDS, field
+        assert field in description, field
+
+
+def test_the_one_undeclared_key_the_description_names_is_still_undeclared():
+    """If the platform declares it, it belongs in the table above, typed by the schema."""
+    tools = {tool.name: tool for tool in asyncio.run(srv.server.list_tools())}
+    for field in UNDECLARED_KEYS_THE_DESCRIPTION_NAMES:
+        assert field not in srv.ITEM_UPDATE_FIELDS, field
+        assert field in tools["update_draft"].description, field
+
+
+def test_the_new_fields_carry_their_types_from_the_schema():
+    labels = dict(zip(srv.ITEM_UPDATE_FIELDS, srv.ITEM_UPDATE_TYPED_FIELDS, strict=True))
+
+    assert labels["summary"] == "summary (string)"
+    assert labels["server"] == "server (object)"
+    assert labels["mcp_requirements"] == "mcp_requirements (object[])"
+    assert labels["knowledge"] == "knowledge (object[])"
+    # A listing's own text, which the schema refresh used to strip as if it were prose.
+    assert labels["description"] == "description (string)"
+
+
+@pytest.mark.parametrize("item_type", srv.LISTING_TYPES)
+def test_every_type_has_a_brief_served_as_its_own_prompt(item_type: str):
+    name = f"draft_{item_type}_listing"
+    assert name in srv.DRAFT_PROMPT_NAMES
+    assert name in srv.INSTRUCTIONS
+
+    brief = getattr(srv, name)("a deploy checklist for release managers")
+    assert srv.GUIDANCE_BY_TYPE[item_type] in brief
+    assert f"Draft a Sigrix {srv.TYPE_LABELS[item_type]} listing" in brief
+    assert "The seller's idea: a deploy checklist for release managers" in brief
+    assert "check_draft" in brief
+
+
+def test_the_instructions_name_every_type_in_words():
+    assert "prompt, persona, skill, MCP server and assistant listings" in srv.INSTRUCTIONS
+
+
+def test_the_new_briefs_name_their_item_type_and_say_what_no_tool_uploads():
+    """A paid MCP server's package and an assistant's document samples are files these tools never send."""
+    mcp = srv.GUIDANCE_BY_TYPE["mcp_server"]
+    assistant = srv.GUIDANCE_BY_TYPE["assistant"]
+
+    assert "item_type `mcp_server`" in mcp
+    assert "item_type `assistant`" in assistant
+    assert "no tool here uploads one" in mcp
+    assert "no tool here uploads one" in assistant

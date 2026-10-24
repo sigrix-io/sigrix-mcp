@@ -462,6 +462,11 @@
             "type": "string",
             "title": "Name"
           },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
           "category": {
             "type": "string",
             "title": "Category",
@@ -555,6 +560,17 @@
               }
             ],
             "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "category": {
             "anyOf": [
@@ -807,6 +823,17 @@
             ],
             "title": "Skill Metadata"
           },
+          "free_feed_opt_out": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Feed Opt Out"
+          },
           "example_input": {
             "anyOf": [
               {
@@ -858,6 +885,21 @@
             ],
             "title": "Mcp Requirements"
           },
+          "knowledge": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledge"
+          },
           "persona_ref": {
             "anyOf": [
               {
@@ -880,7 +922,7 @@
             ],
             "title": "Prompt Ref"
           },
-          "workflow_demo_media_url": {
+          "summary": {
             "anyOf": [
               {
                 "type": "string"
@@ -889,18 +931,19 @@
                 "type": "null"
               }
             ],
-            "title": "Workflow Demo Media Url"
+            "title": "Summary"
           },
-          "workflow_demo_caption": {
+          "server": {
             "anyOf": [
               {
-                "type": "string"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Workflow Demo Caption"
+            "title": "Server"
           },
           "scenarios": {
             "anyOf": [
@@ -1176,6 +1219,58 @@
         ],
         "title": "ImportSkillRequest"
       },
+      "ImportSkillResponse": {
+        "properties": {
+          "created": {
+            "$ref": "#/components/schemas/CreatedDraftPayload"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created"
+        ],
+        "title": "ImportSkillResponse"
+      },
+      "CreatedDraftPayload": {
+        "properties": {
+          "listing_type": {
+            "type": "string",
+            "title": "Listing Type"
+          },
+          "listing_id": {
+            "type": "string",
+            "title": "Listing Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "edit_url": {
+            "type": "string",
+            "title": "Edit Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "listing_type",
+          "listing_id",
+          "slug",
+          "name",
+          "edit_url"
+        ],
+        "title": "CreatedDraftPayload"
+      },
       "CategoriesResponse": {
         "properties": {
           "api_version": {
@@ -1206,6 +1301,11 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
           }
         },
         "type": "object",
@@ -1295,58 +1395,6 @@
           "edit_url"
         ],
         "title": "MyListingOut"
-      },
-      "ImportSkillResponse": {
-        "properties": {
-          "created": {
-            "$ref": "#/components/schemas/CreatedDraftPayload"
-          },
-          "warnings": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Warnings"
-          }
-        },
-        "type": "object",
-        "required": [
-          "created"
-        ],
-        "title": "ImportSkillResponse"
-      },
-      "CreatedDraftPayload": {
-        "properties": {
-          "listing_type": {
-            "type": "string",
-            "title": "Listing Type"
-          },
-          "listing_id": {
-            "type": "string",
-            "title": "Listing Id"
-          },
-          "slug": {
-            "type": "string",
-            "title": "Slug"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "edit_url": {
-            "type": "string",
-            "title": "Edit Url"
-          }
-        },
-        "type": "object",
-        "required": [
-          "listing_type",
-          "listing_id",
-          "slug",
-          "name",
-          "edit_url"
-        ],
-        "title": "CreatedDraftPayload"
       }
     }
   }

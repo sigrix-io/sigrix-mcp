@@ -6,6 +6,59 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
+A MINOR change under `VERSIONING.md`: two new accepted values of every tool's
+`item_type`, two new prompts, and changed descriptions. No tool is renamed or
+removed, no argument changes, and nothing the server sends changes for the
+three types it already covered.
+
+### Added
+
+- **MCP server and assistant listings**, the two types Sigrix has opened to
+  every seller since this server covered prompts, personas and skills. Every
+  tool that takes an `item_type` accepts `mcp_server` and `assistant`, and each
+  goes through the same steps as the other three: `create_draft`,
+  `update_draft`, `check_draft` until eligible, `submit_for_review`, with
+  `list_my_listings` and `get_listing` to find and read one. Crews, agents and
+  workforces stay off: they are built in Sigrix's own editors, which record
+  the test run each needs before review.
+- Prompts `draft_mcp_server_listing` and `draft_assistant_listing`, the brief
+  each type is written to. An MCP server's covers its launch (`server`:
+  `name`, `command`, `args`, `env`, `tools`, `auth_command`), the launches the
+  platform refuses, and why a server launched by `npx` or `uvx` is listed
+  free. An assistant's covers its prompt, its examples, the listings it can
+  build on and the documents it can ask its buyer for.
+
+### Fixed
+
+- `scripts/sync_schemas.py` dropped every `description` and `summary` key on
+  the way in, as prose written for the platform's maintainers, and with them the
+  two *fields* of those names: a listing's `description`, on the models for
+  registering, updating and listing categories, and an MCP server's `summary`. So
+  `update_draft` never listed `description` among the keys it accepts, though
+  every listing type takes one. The script now leaves a field's name alone and
+  strips only the prose, and `tests/test_sync_schemas.py` holds both halves, the
+  vendored document included.
+
+### Changed
+
+- `update_draft`'s description names each new type's fields. Its list of
+  accepted keys comes from a refreshed `seller_api_openapi.json` and gains
+  `summary (string)` and `server (object)`, which the platform's update body now
+  declares where it took them before without naming them, and `free_feed_opt_out`
+  and `knowledge`, which it had declared since the last refresh. It loses
+  `workflow_demo_media_url` and `workflow_demo_caption`, which the platform no
+  longer takes. An assistant's `more_examples` is named in the description and
+  stays out of the list: the platform takes it undeclared, so that a malformed
+  one is refused in its own words.
+- `create_draft`'s description says that an MCP server's `description` becomes
+  its one-line summary and that a paid one must be one Sigrix delivers. The
+  server's instructions name all five types and all five prompts, built from
+  the type list rather than written out a second time.
+- The README says which types the server covers, and that it uploads no file
+  but a SKILL.md: a paid MCP server's package and an assistant's document
+  samples go up from the web form, and `check_draft` says when either is what
+  is left.
+
 ## [0.2.2] — 2026-10-03
 
 A PATCH release under `VERSIONING.md`, and a README-only one: nothing in it
