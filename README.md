@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sigrix-io/sigrix-mcp/main/.github/assets/logo-on-dark.svg">
+    <img src="https://raw.githubusercontent.com/sigrix-io/sigrix-mcp/main/.github/assets/logo.svg" alt="sigrix-mcp" width="120">
+  </picture>
+</p>
+
 # sigrix-mcp
 
 [![PyPI](https://img.shields.io/pypi/v/sigrix-mcp)](https://pypi.org/project/sigrix-mcp/)
