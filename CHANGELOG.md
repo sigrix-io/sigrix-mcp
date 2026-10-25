@@ -6,10 +6,15 @@ described in `VERSIONING.md`.
 
 ## [Unreleased]
 
-A MINOR change under `VERSIONING.md`: two new accepted values of every tool's
+## [0.3.0] — 2026-10-25
+
+A MINOR release under `VERSIONING.md`: two new accepted values of every tool's
 `item_type`, two new prompts, and changed descriptions. No tool is renamed or
 removed, no argument changes, and nothing the server sends changes for the
-three types it already covered.
+three types it already covered. Listing the two new types needs the seller API
+as Sigrix has served it since 2026-10-24: an older platform answers
+`list_my_listings` for either with a 400, and leaves both out of an unfiltered
+list.
 
 ### Added
 
